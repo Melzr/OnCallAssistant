@@ -2,13 +2,13 @@
 
 Multi-agent incident response assistant (POC). Given an alert or a question, it gathers metrics, logs and
 deploys from a simulated environment, retrieves runbooks/postmortems with a metadata-aware RAG, proposes a
-root cause, has a second agent verify it, and posts a summary to Slack.
+root cause, has a second agent verify it, and returns a cited answer.
 
 ## Flow
 
 ```
 request -> auth/RBAC -> input filter -> Triage -> tools + RAG -> Investigator <-> Verifier (max 2 rounds)
-        -> Responder (mitigation quoted from a current runbook) -> Slack -> audit log
+        -> Responder (mitigation quoted from a current runbook) -> audit log
 ```
 
 | Agent | Model (online) | Offline fallback |
@@ -32,13 +32,12 @@ curl -s localhost:8000/ask -H 'x-api-key: key-alice-sre' -H 'content-type: appli
 ```
 
 Scenarios: `db_pool_exhaustion`, `bad_deploy`, `tls_expiry` (see `simulator/scenarios.py`).
-Slack messages go to `var/slack_outbox.log` unless `SLACK_WEBHOOK_URL` is set.
 
 ## Status
 
 Implemented: FastAPI (`/ask`, `/alerts` with HMAC, `/audit/{id}`), 4 agents, simulator, BM25 retriever with
 metadata (hard ACL/status filters, soft service filter, related-doc expansion, metadata rerank, enriched index
-text), injection filter, redaction, hash-chained audit, response cache, rate limit, Slack action.
+text), injection filter, redaction, hash-chained audit, response cache, rate limit.
 
 Not yet: dense embeddings + cross-encoder reranker, CLIP chart classifier, LLM tool-use loop (tools run from a
 fixed plan), eval harness (recall@k, ROUGE, latency), server-side refusal fallbacks, JWT auth, red-team set.
@@ -63,7 +62,7 @@ python -m venv .venv && .venv/bin/pip install -e '.[dev]'
 .venv/bin/python scripts/simulate.py run all --url http://localhost:8000 --alert
 ```
 
-Slack messages go to `var/slack_outbox.log` unless `SLACK_WEBHOOK_URL` is set. Audit trail: `var/audit.jsonl`, or `GET /audit/{incident_id}` with an admin key. Set `ANTHROPIC_API_KEY` to enable the LLM layer.
+Audit trail: `var/audit.jsonl`, or `GET /audit/{incident_id}` with an admin key. Set `ANTHROPIC_API_KEY` to enable the LLM layer.
 
 ## Agent layer and tracing
 

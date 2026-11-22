@@ -1,10 +1,10 @@
 # Threat model (OWASP LLM Top 10 2025 / Agentic threats / API Security)
 
-Principle: the LLM never enforces security. ACLs, citation validation, tool arguments and the Slack allowlist
+Principle: the LLM never enforces security. ACLs, citation validation, and tool arguments
 are checked in code.
 
 Trust boundaries: TB1 user/alert -> API; TB2 API -> agents; TB3 agents -> LLM provider; TB4 agents -> tools;
-TB5 ingest/RAG/cache; TB6 system -> Slack; TB7 supply chain.
+TB5 ingest/RAG/cache; TB6 supply chain.
 
 | # | Surface | Threat | OWASP | Mitigation | Status |
 |---|---|---|---|---|---|
@@ -21,8 +21,6 @@ TB5 ingest/RAG/cache; TB6 system -> Slack; TB7 supply chain.
 | 11 | Agent loop | Infinite loop | T4, T6 | Max rounds, token budget | Done |
 | 12 | Tools | Argument injection | LLM05 | Enum metrics, service allowlist, no shell/SQL | Done |
 | 13 | Tools | Excessive agency | LLM06 | Read-only tools, scoped to user's services | Done |
-| 14 | Output | Malicious links/markup | LLM05 | mrkdwn escape, link domain allowlist | Done |
-| 15 | Slack | Unauthorized channel/action | LLM06 | Channel allowlist; mitigation is text only | Done |
 | 16 | System prompt | Leakage | LLM07 | No secrets in prompts | Partial |
 | 17 | Diagnosis | Confident wrong RCA | LLM09 | Citations required, confidence cap, "inconclusive" | Done |
 | 18 | Cost | Denial of wallet | LLM10 | Rate limit, token budget, max_tokens | Done |

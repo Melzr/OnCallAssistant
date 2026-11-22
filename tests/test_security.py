@@ -1,6 +1,5 @@
 import pytest
 
-from app.actions import slack
 from app.agents import verifier
 from app.rag.retriever import Retriever
 from app.schemas import AskRequest, Evidence, Hypothesis
@@ -70,16 +69,6 @@ def test_tool_args_validated():
         ops.search_logs(env, "postgres", ["payments-service"])
 
 
-def test_redaction_and_slack_escaping():
+def test_redaction():
     assert "AKIAABCDEFGHIJKLMNOP" not in redact("key AKIAABCDEFGHIJKLMNOP user a@b.com ip 10.0.0.1")
-    assert "<" not in slack.escape_mrkdwn("<!channel> <http://evil|click>")
-    assert "link removed" in slack.strip_unlisted_links("see http://evil.example/x")
 
-
-def test_slack_channel_allowlist(orch, alice):
-    from app.schemas import FinalAnswer
-    a = FinalAnswer(incident_id="i", status="approved", service="s", root_cause="r", category="c",
-                    confidence=0.5, mitigation_ref=None, mitigation_text=None, citations=[], evidence=[],
-                    verifier_rounds=1)
-    with pytest.raises(PermissionError):
-        slack.post(a, "#random")

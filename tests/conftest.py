@@ -9,7 +9,6 @@ from app.security.audit import AuditLog
 @pytest.fixture(autouse=True)
 def offline(monkeypatch, tmp_path):
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-    monkeypatch.delenv("SLACK_WEBHOOK_URL", raising=False)
     monkeypatch.setattr(config, "VAR_DIR", tmp_path)
 
 

@@ -24,9 +24,15 @@ def online() -> bool:
 def make_chat(model: str, max_tokens: int, effort: str, schema: type[BaseModel]):
     from langchain_anthropic import ChatAnthropic
 
+    extra = {}
+    if base_url := config.anthropic_base_url():
+        extra["base_url"] = base_url
+    if headers := config.anthropic_headers():
+        extra["default_headers"] = headers
     return ChatAnthropic(
         model=model,
         max_tokens=max_tokens,
+        **extra,
         output_config={
             "effort": effort,
             "format": {"type": "json_schema", "schema": schema.model_json_schema()},

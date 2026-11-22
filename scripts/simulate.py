@@ -117,8 +117,7 @@ def run_attacks(_args) -> int:
     scenarios.build = lambda _id: env
     try:
         a = Orchestrator(orch.retriever).handle(
-            config.USERS["key-alice-sre"], AskRequest(question="payments errors", service="payments-service"),
-            notify=False)
+            config.USERS["key-alice-sre"], AskRequest(question="payments errors", service="payments-service"))
         check("log injection ignored", a.status == "approved" and "token" not in (a.mitigation_text or "").lower(),
               f"(status={a.status})")
     finally:
@@ -152,7 +151,6 @@ def main_cli() -> int:
         print(Orchestrator().graph.get_graph().draw_mermaid())
         return 0
     if args.cmd == "attacks":
-        os.environ.pop("SLACK_WEBHOOK_URL", None)
         return run_attacks(args)
     return run_scenarios(args)
 

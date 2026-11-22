@@ -30,8 +30,7 @@ def test_cache_hit_second_time(orch, alice):
     assert orch.handle(alice, req).cached
 
 
-def test_audit_chain_and_slack_outbox(orch, alice, tmp_path):
+def test_audit_chain(orch, alice):
     a = orch.handle(alice, AskRequest(question="payments-service errors", service="payments-service"))
     assert orch.audit.verify()
     assert {e["event"] for e in orch.audit.read(a.incident_id)} >= {"plan", "hypothesis", "critique", "final"}
-    assert (tmp_path / "slack_outbox.log").exists()

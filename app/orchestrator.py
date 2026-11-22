@@ -3,7 +3,6 @@ import time
 import uuid
 
 from app import config, tracing
-from app.actions import slack
 from app.graph import build_graph
 from app.rag.retriever import Retriever
 from app.schemas import AskRequest, FinalAnswer
@@ -24,7 +23,7 @@ class Orchestrator:
         raw = f"{req.service}|{req.scenario}|{' '.join(req.question.lower().split())}|{scope}"
         return hashlib.sha256(raw.encode()).hexdigest()
 
-    def handle(self, user: dict, req: AskRequest, notify: bool = True) -> FinalAnswer:
+    def handle(self, user: dict, req: AskRequest) -> FinalAnswer:
         incident_id = f"inc-{uuid.uuid4().hex[:8]}"
         who = user["name"]
         trace: list[dict] = []
@@ -53,8 +52,6 @@ class Orchestrator:
         answer.trace = trace
         if answer.status == "approved":
             self._cache[key] = (time.time(), answer)
-        if notify:
-            log("slack", slack.post(answer))
         log("final", {"status": answer.status, "category": answer.category, "tokens": tokens})
         return answer
 

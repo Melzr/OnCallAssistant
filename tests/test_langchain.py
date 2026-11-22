@@ -34,7 +34,7 @@ def online(monkeypatch):
 def test_online_path_traces_llm_calls(monkeypatch, online, orch, alice):
     monkeypatch.setattr(llm, "make_chat", fake_chat_factory())
     a = orch.handle(alice, AskRequest(question="payments-service is down, how do I fix it?",
-                                      service="payments-service", scenario="db_pool_exhaustion"), notify=False)
+                                      service="payments-service", scenario="db_pool_exhaustion"))
     assert a.status == "approved"
     assert a.tokens == 45
     events = [t["event"] for t in a.trace]
@@ -47,7 +47,7 @@ def test_online_path_traces_llm_calls(monkeypatch, online, orch, alice):
 def test_refusal_falls_back_to_heuristics(monkeypatch, online, orch, alice):
     monkeypatch.setattr(llm, "make_chat", fake_chat_factory(refuse_for=Hypothesis))
     a = orch.handle(alice, AskRequest(question="payments-service is down, how do I fix it?",
-                                      service="payments-service", scenario="db_pool_exhaustion"), notify=False)
+                                      service="payments-service", scenario="db_pool_exhaustion"))
     assert a.status == "approved"
     assert a.tokens == 30
 
@@ -55,3 +55,12 @@ def test_refusal_falls_back_to_heuristics(monkeypatch, online, orch, alice):
 def test_graph_has_expected_nodes(orch):
     nodes = set(orch.graph.get_graph().nodes)
     assert {"triage", "gather", "investigate", "verify", "respond"} <= nodes
+
+
+def test_base_url_and_headers_reach_client(monkeypatch):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+    monkeypatch.setenv("ANTHROPIC_BASE_URL", "https://gateway.example")
+    monkeypatch.setenv("ANTHROPIC_CUSTOM_HEADERS", "x-client-id: claude")
+    chat = llm.make_chat("claude-haiku-5-5", 100, "low", Plan)
+    assert chat.anthropic_api_url == "https://gateway.example"
+    assert chat.default_headers == {"x-client-id": "claude"}

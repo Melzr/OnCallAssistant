@@ -17,9 +17,6 @@ TOKEN_BUDGET_PER_INCIDENT = 60_000
 CACHE_TTL_SECONDS = 600
 RATE_LIMIT_PER_MINUTE = 20
 
-SLACK_CHANNEL_ALLOWLIST = {"#incidents", "#oncall-copilot"}
-LINK_DOMAIN_ALLOWLIST = {"runbooks.internal.example"}
-
 SERVICE_GRAPH = {
     "api-gateway": ["auth-service", "orders-service"],
     "orders-service": ["payments-service", "postgres"],
@@ -41,8 +38,18 @@ def anthropic_key() -> str | None:
     return os.environ.get("ANTHROPIC_API_KEY") or None
 
 
-def slack_webhook() -> str | None:
-    return os.environ.get("SLACK_WEBHOOK_URL") or None
+def anthropic_base_url() -> str | None:
+    return os.environ.get("ANTHROPIC_BASE_URL") or None
+
+
+def anthropic_headers() -> dict[str, str]:
+    """Parses ANTHROPIC_CUSTOM_HEADERS ('Name: value' per line)."""
+    out = {}
+    for line in os.environ.get("ANTHROPIC_CUSTOM_HEADERS", "").splitlines():
+        name, sep, value = line.partition(":")
+        if sep and name.strip():
+            out[name.strip()] = value.strip()
+    return out
 
 
 def alert_secret() -> str:

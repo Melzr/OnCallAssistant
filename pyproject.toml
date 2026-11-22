@@ -20,7 +20,7 @@ dependencies = [
 dev = ["pytest>=8"]
 
 [tool.setuptools]
-packages = ["app", "app.api", "app.agents", "app.tools", "app.rag", "app.security", "app.actions", "simulator"]
+packages = ["app", "app.api", "app.agents", "app.tools", "app.rag", "app.security", "simulator"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
