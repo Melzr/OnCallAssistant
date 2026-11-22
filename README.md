@@ -45,3 +45,32 @@ fixed plan), eval harness (recall@k, ROUGE, latency), server-side refusal fallba
 The online (LLM) path is untested against the real API.
 
 See `THREAT_MODEL.md` for the attack-surface analysis.
+
+## Try it
+
+```bash
+python -m venv .venv && .venv/bin/pip install -e '.[dev]'
+.venv/bin/python -m pytest -q
+
+# simulate incidents in-process (offline, no API key needed)
+.venv/bin/python scripts/simulate.py list
+.venv/bin/python scripts/simulate.py run all -v
+.venv/bin/python scripts/simulate.py attacks
+
+# against a running server
+.venv/bin/uvicorn app.api.main:app --reload
+.venv/bin/python scripts/simulate.py run bad_deploy --url http://localhost:8000
+.venv/bin/python scripts/simulate.py run all --url http://localhost:8000 --alert
+```
+
+Slack messages go to `var/slack_outbox.log` unless `SLACK_WEBHOOK_URL` is set. Audit trail: `var/audit.jsonl`, or `GET /audit/{incident_id}` with an admin key. Set `ANTHROPIC_API_KEY` to enable the LLM layer.
+
+## Agent layer and tracing
+
+Agents run as nodes of a LangGraph `StateGraph` (`app/graph.py`): `triage -> gather -> investigate <-> verify -> respond`. The verify-to-investigate loop is a conditional edge bounded by `MAX_VERIFY_ROUNDS` and the token budget. LLM calls use `ChatAnthropic` (`app/llm.py`); evidence tools are LangChain `StructuredTool`s.
+
+Traceability:
+- A callback handler (`app/tracing.py`) records every LLM call (model, tokens, latency, stop reason) and tool call into the response `trace` and the hash-chained audit log. Prompt text is never stored there.
+- Set `LANGSMITH_API_KEY` to also send full runs to LangSmith (project `oncall-copilot`, tagged with `incident_id`). Prompts and incident data leave the machine, so keep it unset for sensitive data.
+
+`python scripts/simulate.py graph` prints the graph as mermaid.

@@ -17,7 +17,7 @@ def run(question: str, service: str | None, allowed: list[str]) -> tuple[Plan, i
     if llm.online():
         try:
             plan, tokens = llm.complete_json(
-                model=config.MODEL_TRIAGE, system=SYSTEM, schema=Plan, max_tokens=600,
+                model=config.MODEL_TRIAGE, system=SYSTEM, schema=Plan, max_tokens=600, name="triage",
                 user=f"allowed_services={allowed}\nrequested_service={service}\n"
                      f"<untrusted source=\"user\">\n{question}\n</untrusted>")
         except (llm.LLMUnavailable, llm.LLMRefusal):

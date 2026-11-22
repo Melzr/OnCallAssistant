@@ -1,3 +1,7 @@
+from langchain_core.tools import StructuredTool
+
+from pydantic import BaseModel
+
 from app import config, llm
 from app.rag.retriever import Retriever
 from app.schemas import Critique, Evidence, Hypothesis, Plan
@@ -14,6 +18,14 @@ SYSTEM = (
 )
 
 
+class _MetricArgs(BaseModel):
+    metric: str
+
+
+class _NoArgs(BaseModel):
+    pass
+
+
 def gather(env: Scenario, plan: Plan, allowed: list[str]) -> list[Evidence]:
     ev: list[Evidence] = []
     n = 0
@@ -23,14 +35,25 @@ def gather(env: Scenario, plan: Plan, allowed: list[str]) -> list[Evidence]:
         n += 1
         ev.append(Evidence(id=f"E{n}", kind=kind, summary=summary, source=source))
 
+    svc = plan.service
+    metrics_tool = StructuredTool.from_function(
+        func=lambda metric: ops.query_metrics(env, svc, metric, allowed), name="query_metrics",
+        description="z-score of a service metric against its baseline", args_schema=_MetricArgs)
+    logs_tool = StructuredTool.from_function(
+        func=lambda: ops.search_logs(env, svc, allowed), name="search_logs",
+        description="templated error logs with counts", args_schema=_NoArgs)
+    deploys_tool = StructuredTool.from_function(
+        func=lambda: ops.recent_deploys(env, svc, allowed), name="recent_deploys",
+        description="deploys in the last 30 minutes", args_schema=_NoArgs)
+
     for metric in sorted(ops.METRICS):
-        m = ops.query_metrics(env, plan.service, metric, allowed)
+        m = metrics_tool.invoke({"metric": metric})
         if m["anomalous"]:
             add("metric", f"{metric} anomalous: baseline={m['baseline']} recent={m['recent']} "
                           f"z={m['zscore']} onset_minute={m['onset_minute']}", f"metrics:{plan.service}:{metric}")
-    for t in ops.search_logs(env, plan.service, allowed):
+    for t in logs_tool.invoke({}):
         add("log", redact(f"{t['count']}x {t['template']}"), f"logs:{plan.service}")
-    for d in ops.recent_deploys(env, plan.service, allowed):
+    for d in deploys_tool.invoke({}):
         add("deploy", f"{d['id']} at minute {d['minute']}: {d['description']}", f"deploys:{plan.service}")
     return ev
 
@@ -61,7 +84,7 @@ def _llm(plan, evidence, docs, critique, severity_low):
     )
     model = config.MODEL_INVESTIGATOR_LOW if severity_low else config.MODEL_INVESTIGATOR
     return llm.complete_json(model=model, system=SYSTEM, user=user, schema=Hypothesis,
-                             max_tokens=2500, effort="medium")
+                             max_tokens=2500, effort="medium", name="investigator")
 
 
 def _heuristic(plan: Plan, evidence: list[Evidence], docs: list[dict]) -> Hypothesis:

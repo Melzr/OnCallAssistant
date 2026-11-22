@@ -95,7 +95,27 @@ def _tls_expiry(seed=3):
     return s
 
 
-_BUILDERS = {"db_pool_exhaustion": _db_pool, "bad_deploy": _bad_deploy, "tls_expiry": _tls_expiry}
+def _oom(seed=4):
+    rng = random.Random(seed)
+    s = Scenario("oom_killed", "api-gateway", "memory_leak",
+                 "Memory leak in api-gateway causes OOMKilled restarts (no runbook exists)",
+                 "none")
+    s.metrics = {
+        "latency_p95_ms": _series(rng, 90, 10, ONSET, lambda m, v: v + 300),
+        "error_rate": _series(rng, 0.002, 0.001, ONSET, lambda m, v: 0.08 + rng.uniform(0, 0.02)),
+        "db_active_connections": _series(rng, 5, 1),
+        "cpu_pct": _series(rng, 30, 4, ONSET, lambda m, v: v + 35),
+    }
+    s.logs = _noise_logs(rng, s.service)
+    for m in range(ONSET, MINUTES, 2):
+        s.logs.append({"minute": m, "level": "ERROR", "service": s.service,
+                       "message": f"container api-gateway-{rng.randint(1, 9)} terminated reason=OOMKilled exit_code=137"})
+    s.deploys = []
+    return s
+
+
+_BUILDERS = {"db_pool_exhaustion": _db_pool, "bad_deploy": _bad_deploy, "tls_expiry": _tls_expiry,
+             "oom_killed": _oom}
 
 
 def scenario_ids() -> list[str]:

@@ -39,7 +39,7 @@ def run(h: Hypothesis, evidence: list[Evidence], docs: list[dict]) -> tuple[Crit
         ev_txt = "\n".join(f"{e.id} [{e.kind}] {e.summary}" for e in evidence)
         try:
             sem, tokens = llm.complete_json(
-                model=config.MODEL_VERIFIER, system=SYSTEM, schema=Critique, max_tokens=1200,
+                model=config.MODEL_VERIFIER, system=SYSTEM, schema=Critique, max_tokens=1200, name="verifier",
                 user=f"hypothesis={h.model_dump_json()}\n{wrap_untrusted('evidence', ev_txt)}")
             issues += sem.issues
             if not sem.approved and not sem.issues:
