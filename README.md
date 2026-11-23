@@ -39,10 +39,6 @@ Implemented: FastAPI (`/ask`, `/alerts` with HMAC, `/audit/{id}`), 4 agents, sim
 metadata (hard ACL/status filters, soft service filter, related-doc expansion, metadata rerank, enriched index
 text), injection filter, redaction, hash-chained audit, response cache, rate limit.
 
-Not yet: dense embeddings + cross-encoder reranker, CLIP chart classifier, LLM tool-use loop (tools run from a
-fixed plan), eval harness (recall@k, ROUGE, latency), server-side refusal fallbacks, JWT auth, red-team set.
-The online (LLM) path is untested against the real API.
-
 See `THREAT_MODEL.md` for the attack-surface analysis.
 
 ## Try it
@@ -73,3 +69,10 @@ Traceability:
 - Set `LANGSMITH_API_KEY` to also send full runs to LangSmith (project `oncall-copilot`, tagged with `incident_id`). Prompts and incident data leave the machine, so keep it unset for sensitive data.
 
 `python scripts/simulate.py graph` prints the graph as mermaid.
+
+## Cost and latency
+
+- **Model cascade:** the investigator starts on Sonnet and escalates to Opus only when the verifier rejects the first hypothesis. Triage uses Haiku.
+- **Prompt trimming:** LLM prompts include only the top `MAX_PROMPT_DOCS` retrieved chunks (plus any chunk the hypothesis cites), each cut at `MAX_DOC_CHARS`. The full set is still used for citation checks and for quoting the mitigation.
+- **Limits:** response cache (TTL), per-incident token budget, rate limit, max 2 verify rounds.
+- **Visibility:** each LLM call records model, tokens and latency in the response `trace`.

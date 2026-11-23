@@ -84,3 +84,36 @@ def test_llm_errors_fall_back_to_heuristics(monkeypatch, online, orch, alice):
                                       service="payments-service", scenario="db_pool_exhaustion"))
     assert a.status == "approved"
     assert a.tokens == 0
+
+
+def test_investigator_escalates_to_opus_only_after_rejection(monkeypatch, online, orch, alice):
+    from app import config
+    used = []
+    bad = {**REPLIES[Hypothesis], "category": "made_up"}
+    seq = {"inv": 0}
+
+    def make(model, max_tokens, effort, schema):
+        used.append(model)
+        reply = REPLIES[schema]
+        if schema is Hypothesis:
+            reply = bad if seq["inv"] == 0 else REPLIES[Hypothesis]
+            seq["inv"] += 1
+        msg = AIMessage(content=json.dumps(reply), response_metadata={"stop_reason": "end_turn"})
+        return GenericFakeChatModel(messages=iter([msg]))
+
+    monkeypatch.setattr(llm, "make_chat", make)
+    orch.handle(alice, AskRequest(question="payments-service is down, how do I fix it?",
+                                  service="payments-service", scenario="db_pool_exhaustion"))
+    inv = [m for m in used if m in (config.MODEL_INVESTIGATOR, config.MODEL_INVESTIGATOR_ESCALATION)]
+    assert inv[0] == config.MODEL_INVESTIGATOR
+    assert inv[1] == config.MODEL_INVESTIGATOR_ESCALATION
+
+
+def test_prompt_docs_are_trimmed_but_keep_citations():
+    from app import config
+    from app.agents.context import render_docs
+    docs = [{"id": f"d#{i}", "header": f"h{i}", "text": "x" * 5000, "score": 1 - i / 10} for i in range(8)]
+    out = render_docs(docs, keep=("d#7",))
+    assert out.count("[truncated]") == config.MAX_PROMPT_DOCS + 1
+    assert "[d#0]" in out and "[d#7]" in out and "[d#5]" not in out
+    assert len(out) < (config.MAX_PROMPT_DOCS + 1) * (config.MAX_DOC_CHARS + 100)

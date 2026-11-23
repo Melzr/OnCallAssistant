@@ -23,7 +23,7 @@ TB5 ingest/RAG/cache; TB6 supply chain.
 | 13 | Tools | Excessive agency | LLM06 | Read-only tools, scoped to user's services | Done |
 | 16 | System prompt | Leakage | LLM07 | No secrets in prompts | Partial |
 | 17 | Diagnosis | Confident wrong RCA | LLM09 | Citations required, confidence cap, "inconclusive" | Done |
-| 18 | Cost | Denial of wallet | LLM10 | Rate limit, token budget, max_tokens | Done |
+| 18 | Cost | Denial of wallet | LLM10 | Rate limit, token budget, max_tokens, model cascade, trimmed prompts | Done |
 | 19 | Supply chain | Malicious model/deps | LLM03 | Pin hashes, safetensors only | Design |
 | 20 | Audit | Repudiation | T8 | Hash-chained append-only log | Done |
 | 21 | Human on-call | Approval fatigue | T10, T15 | Severity grouping, show uncertainty | Design |

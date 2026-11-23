@@ -1,4 +1,5 @@
 from app import config, llm
+from app.agents.context import render_docs
 from app.schemas import Critique, Evidence, Hypothesis
 from app.security.filters import wrap_untrusted
 
@@ -40,7 +41,7 @@ def run(h: Hypothesis, evidence: list[Evidence], docs: list[dict]) -> tuple[Crit
     tokens = 0
     if llm.online() and not issues:
         ev_txt = "\n".join(f"{e.id} [{e.kind}] {e.summary}" for e in evidence)
-        doc_txt = "\n\n".join(f"[{d['id']}] {d['header']}\n{d['text']}" for d in docs)
+        doc_txt = render_docs(docs, keep=tuple(h.citations))
         try:
             sem, tokens = llm.complete_json(
                 model=config.MODEL_VERIFIER, system=SYSTEM, schema=Critique, max_tokens=1200, name="verifier",

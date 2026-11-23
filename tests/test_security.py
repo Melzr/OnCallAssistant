@@ -1,3 +1,5 @@
+import os
+
 import pytest
 
 from app.agents import verifier
@@ -72,3 +74,19 @@ def test_tool_args_validated():
 def test_redaction():
     assert "AKIAABCDEFGHIJKLMNOP" not in redact("key AKIAABCDEFGHIJKLMNOP user a@b.com ip 10.0.0.1")
 
+
+
+def test_env_file_loading(tmp_path, monkeypatch):
+    from app import config
+    f = tmp_path / ".env"
+    f.write_text('# c\nALERT_HMAC_SECRET="from-file"\nexport X_TEST_A=1\nX_TEST_EMPTY=\nX_TEST_KEEP=file\n')
+    monkeypatch.delenv("ALERT_HMAC_SECRET", raising=False)
+    monkeypatch.delenv("X_TEST_A", raising=False)
+    monkeypatch.setenv("X_TEST_KEEP", "shell")
+    config.load_env(f)
+    assert config.alert_secret() == "from-file"
+    assert os.environ["X_TEST_A"] == "1"
+    assert "X_TEST_EMPTY" not in os.environ
+    assert os.environ["X_TEST_KEEP"] == "shell"
+    monkeypatch.delenv("ALERT_HMAC_SECRET")
+    monkeypatch.delenv("X_TEST_A")

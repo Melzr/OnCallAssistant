@@ -58,8 +58,7 @@ def build_graph(retriever: Retriever):
         plan, user = s["plan"], s["user"]
         if s["tokens"] > settings.TOKEN_BUDGET_PER_INCIDENT and "hypothesis" not in s:
             raise RuntimeError("token budget exceeded before any hypothesis")
-        h, t = investigator.run(plan, s["evidence"], s["docs"], s.get("critique"),
-                                severity_low=plan.severity == "low")
+        h, t = investigator.run(plan, s["evidence"], s["docs"], s.get("critique"))
         docs = _merge(s["docs"], retriever.search(
             plan.incident_goal, groups=user["groups"], service=plan.service,
             intent=plan.intent, category=h.category))

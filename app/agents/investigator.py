@@ -3,6 +3,7 @@ from langchain_core.tools import StructuredTool
 from pydantic import BaseModel
 
 from app import config, llm
+from app.agents.context import render_docs
 from app.rag.retriever import Retriever
 from app.schemas import Critique, Evidence, Hypothesis, Plan
 from app.security.filters import injection_score, wrap_untrusted
@@ -65,11 +66,10 @@ def retrieve(retriever: Retriever, plan: Plan, evidence: list[Evidence], groups:
     return retriever.search(query, groups=groups, service=plan.service, intent=plan.intent)
 
 
-def run(plan: Plan, evidence: list[Evidence], docs: list[dict], critique: Critique | None,
-        severity_low: bool = False) -> tuple[Hypothesis, int]:
+def run(plan: Plan, evidence: list[Evidence], docs: list[dict], critique: Critique | None) -> tuple[Hypothesis, int]:
     if llm.online():
         try:
-            return _llm(plan, evidence, docs, critique, severity_low)
+            return _llm(plan, evidence, docs, critique)
         except (llm.LLMUnavailable, llm.LLMRefusal):
             pass
     return _heuristic(plan, evidence, docs), 0
@@ -79,16 +79,16 @@ def _categories(docs: list[dict]) -> list[str]:
     return sorted({d["metadata"]["category"] for d in docs if d["metadata"].get("category")})
 
 
-def _llm(plan, evidence, docs, critique, severity_low):
+def _llm(plan, evidence, docs, critique):
     ev_txt = "\n".join(f"{e.id} [{e.kind}] {e.summary}" for e in evidence)
-    doc_txt = "\n\n".join(f"{d['header']}\n{d['text']}" for d in docs)
+    doc_txt = render_docs(docs)
     user = (
         f"service={plan.service} intent={plan.intent}\n"
         f"category must be exactly one of {_categories(docs)} or 'unknown'\n"
         f"{wrap_untrusted('evidence', ev_txt)}\n{wrap_untrusted('documents', doc_txt)}\n"
         + (f"Previous critique to address: {critique.issues}\n" if critique else "")
     )
-    model = config.MODEL_INVESTIGATOR_LOW if severity_low else config.MODEL_INVESTIGATOR
+    model = config.MODEL_INVESTIGATOR_ESCALATION if critique else config.MODEL_INVESTIGATOR
     return llm.complete_json(model=model, system=SYSTEM, user=user, schema=Hypothesis,
                              max_tokens=2500, effort="medium", name="investigator")
 
