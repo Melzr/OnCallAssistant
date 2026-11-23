@@ -64,3 +64,23 @@ def test_base_url_and_headers_reach_client(monkeypatch):
     chat = llm.make_chat("claude-haiku-5-5", 100, "low", Plan)
     assert chat.anthropic_api_url == "https://gateway.example"
     assert chat.default_headers == {"x-client-id": "claude"}
+
+
+def test_schema_is_closed_and_unconstrained():
+    from app.schemas import Hypothesis as H
+    s = llm.strict_schema(H.model_json_schema())
+    assert s["additionalProperties"] is False
+    assert "minimum" not in json.dumps(s) and "maximum" not in json.dumps(s)
+    assert "properties" in s and "confidence" in s["properties"]
+
+
+def test_llm_errors_fall_back_to_heuristics(monkeypatch, online, orch, alice):
+    class Broken:
+        def __or__(self, other):
+            raise RuntimeError("gateway 400")
+
+    monkeypatch.setattr(llm, "make_chat", lambda *a, **k: Broken())
+    a = orch.handle(alice, AskRequest(question="payments-service is down, how do I fix it?",
+                                      service="payments-service", scenario="db_pool_exhaustion"))
+    assert a.status == "approved"
+    assert a.tokens == 0

@@ -21,6 +21,22 @@ def online() -> bool:
     return config.anthropic_key() is not None
 
 
+_UNSUPPORTED = {"minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum", "minLength", "maxLength",
+                "minItems", "maxItems", "title", "default"}
+
+
+def strict_schema(node):
+    """Adapts a pydantic JSON schema to the structured-output subset (closed objects, no constraints)."""
+    if isinstance(node, list):
+        return [strict_schema(n) for n in node]
+    if not isinstance(node, dict):
+        return node
+    out = {k: strict_schema(v) for k, v in node.items() if k not in _UNSUPPORTED or k == "properties"}
+    if out.get("type") == "object":
+        out["additionalProperties"] = False
+    return out
+
+
 def make_chat(model: str, max_tokens: int, effort: str, schema: type[BaseModel]):
     from langchain_anthropic import ChatAnthropic
 
@@ -35,7 +51,7 @@ def make_chat(model: str, max_tokens: int, effort: str, schema: type[BaseModel])
         **extra,
         output_config={
             "effort": effort,
-            "format": {"type": "json_schema", "schema": schema.model_json_schema()},
+            "format": {"type": "json_schema", "schema": strict_schema(schema.model_json_schema())},
         },
     )
 
@@ -55,5 +71,10 @@ def complete_json(*, model: str, system: str, user: str, schema: type[T], max_to
     """Run a chat -> schema-validating chain and return the object plus tokens used."""
     if not online():
         raise LLMUnavailable("ANTHROPIC_API_KEY not set")
-    chain = (make_chat(model, max_tokens, effort, schema) | _parser(schema)).with_config(run_name=name)
-    return chain.invoke([SystemMessage(system), HumanMessage(user)])
+    try:
+        chain = (make_chat(model, max_tokens, effort, schema) | _parser(schema)).with_config(run_name=name)
+        return chain.invoke([SystemMessage(system), HumanMessage(user)])
+    except LLMRefusal:
+        raise
+    except Exception as e:
+        raise LLMUnavailable(f"{type(e).__name__}: {str(e)[:200]}") from e
