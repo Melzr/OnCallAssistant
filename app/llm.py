@@ -66,6 +66,9 @@ def _parser(schema: type[T]) -> RunnableLambda:
     return RunnableLambda(parse, name="parse_json")
 
 
+CACHE_BUST = ""  # unique value defeats gateway-side response caching (used by benchmarks)
+
+
 def complete_json(*, model: str, system: str, user: str, schema: type[T], max_tokens: int = 2000,
                   effort: str = "low", name: str = "llm") -> tuple[T, int]:
     """Run a chat -> schema-validating chain and return the object plus tokens used."""
@@ -73,7 +76,7 @@ def complete_json(*, model: str, system: str, user: str, schema: type[T], max_to
         raise LLMUnavailable("ANTHROPIC_API_KEY not set")
     try:
         chain = (make_chat(model, max_tokens, effort, schema) | _parser(schema)).with_config(run_name=name)
-        return chain.invoke([SystemMessage(system), HumanMessage(user)])
+        return chain.invoke([SystemMessage(system + (f"\n[request {CACHE_BUST}]" if CACHE_BUST else "")), HumanMessage(user)])
     except LLMRefusal:
         raise
     except Exception as e:

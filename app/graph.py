@@ -1,3 +1,4 @@
+import time
 from typing import TypedDict
 
 from langgraph.graph import END, START, StateGraph
@@ -78,18 +79,26 @@ def build_graph(retriever: Retriever):
             return "respond"
         return "investigate"
 
-    def respond_node(s: State):
+    def respond_node(s: State, config: RunnableConfig):
         answer = responder.run(s["incident_id"], s["plan"], s["hypothesis"], s["critique"].approved,
                                s["rounds"], s["evidence"], s["docs"])
         answer.tokens = s["tokens"]
         return {"answer": answer}
 
+    def timed(name, fn):
+        def node(s: State, config: RunnableConfig):
+            t0 = time.time()
+            out = fn(s, config)
+            _log(config)("node", {"node": name, "ms": int((time.time() - t0) * 1000)})
+            return out
+        return node
+
     g = StateGraph(State)
-    g.add_node("triage", triage_node)
-    g.add_node("gather", gather_node)
-    g.add_node("investigate", investigate_node)
-    g.add_node("verify", verify_node)
-    g.add_node("respond", respond_node)
+    g.add_node("triage", timed("triage", triage_node))
+    g.add_node("gather", timed("gather", gather_node))
+    g.add_node("investigate", timed("investigate", investigate_node))
+    g.add_node("verify", timed("verify", verify_node))
+    g.add_node("respond", timed("respond", respond_node))
     g.add_edge(START, "triage")
     g.add_edge("triage", "gather")
     g.add_edge("gather", "investigate")

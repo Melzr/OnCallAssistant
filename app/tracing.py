@@ -33,11 +33,13 @@ class TraceHandler(BaseCallbackHandler):
         usage = getattr(msg, "usage_metadata", None) or {}
         meta = getattr(msg, "response_metadata", {}) or {}
         self.sink("llm_call", {"model": meta.get("model_name") or meta.get("model", "unknown"),
-                               "tokens": usage.get("total_tokens", 0), "ms": self._ms(run_id),
+                               "tokens": usage.get("total_tokens", 0),
+                               "input_tokens": usage.get("input_tokens", 0),
+                               "output_tokens": usage.get("output_tokens", 0), "ms": self._ms(run_id),
                                "stop_reason": meta.get("stop_reason")})
 
     def on_llm_error(self, error, *, run_id, **kwargs):
-        self.sink("llm_error", {"error": type(error).__name__, "ms": self._ms(run_id)})
+        self.sink("llm_error", {"error": type(error).__name__, "detail": str(error)[:200], "ms": self._ms(run_id)})
 
     def on_tool_start(self, serialized, input_str, *, run_id, **kwargs):
         self._start[run_id] = time.time()
