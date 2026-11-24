@@ -192,12 +192,16 @@ Optimización de costo: tras recortar el prompt y escalar a Opus solo tras un re
 - BLEU y ROUGE tienen poco valor con referencias cortas; se complementan con el juez, pero este es otro LLM y puede tener sesgo.
 - Al repetir pedidos idénticos se observaron latencias de ~200 ms por llamada, compatibles con una caché del lado del gateway. Las métricas de latencia se tomaron con una etiqueta única por incidente.
 - El costo es una estimación a precio de lista.
+- Las métricas, los logs y los deploys son simulados (`simulator/scenarios.py`): series sintéticas con semilla fija y una causa conocida. Los resultados miden el pipeline sobre datos controlados, no sobre un entorno real.
+- Los usuarios y sus API keys están fijos en `app/config.py` (dos claves de demo en texto plano). Sirve para el POC, pero no es aceptable fuera de un entorno local.
 
 **Mejoras futuras**
 
 - Disparo automático desde alertas y una acción final automática (por ejemplo, abrir un ticket o ejecutar un rollback con aprobación humana).
 - Un corpus y un conjunto de escenarios mayores, con casos ambiguos y de varios servicios.
 - Un retriever híbrido (BM25 más embeddings) y un reranker, evaluado con el mismo harness.
+- Conectar las herramientas operativas (`query_metrics`, `search_logs`, `recent_deploys`) a las fuentes reales en producción: una API de métricas (por ejemplo Prometheus o Datadog), un sistema de logs y el historial de deploys del CI/CD. La interfaz de las herramientas no cambia; solo se reemplaza el simulador.
+- Un mecanismo real para las API keys en producción: usuarios y claves fuera del repositorio, claves aleatorias guardadas solo como hash, con expiración, revocación y rotación, o bien tokens JWT emitidos por un proveedor de identidad.
 - Prompt caching de Anthropic para el prefijo estable, y una caché de respuestas acotada y compartida entre procesos.
 
 ## Cómo reproducir

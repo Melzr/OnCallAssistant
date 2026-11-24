@@ -86,6 +86,8 @@ Traceability:
 
 ## Future improvements
 
+- Real data sources: metrics, logs and deploys are simulated (`simulator/scenarios.py`). In production the ops tools should call a metrics API (for example Prometheus or Datadog), a log system and the CI/CD deploy history.
+- API key management for production: users and keys outside the repo, keys stored only as hashes, with expiry, revocation and rotation (or JWTs from an IdP). The POC hardcodes two demo keys in `app/config.py`.
 - Automatic trigger: accept alerts from a monitoring system (signed webhook) instead of only human questions.
 - Final automatic action (for example a Slack summary or a ticket).
 - Evaluation harness with metrics for the model, the agents and the RAG.
