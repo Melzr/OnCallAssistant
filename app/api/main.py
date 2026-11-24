@@ -1,9 +1,7 @@
-import hashlib
-import hmac
 import time
 from collections import defaultdict, deque
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Request
+from fastapi import Depends, FastAPI, Header, HTTPException
 
 from app import config
 from app.orchestrator import Orchestrator
@@ -49,21 +47,6 @@ def ask(req: AskRequest, user: dict = Depends(current_user), orch: Orchestrator 
     except PermissionError as e:
         raise HTTPException(403, str(e))
     except (ValueError, KeyError) as e:
-        raise HTTPException(400, str(e))
-
-
-@app.post("/alerts", response_model=FinalAnswer)
-async def alert(request: Request, x_signature: str = Header(default=""),
-                orch: Orchestrator = Depends(orchestrator)):
-    body = await request.body()
-    expected = hmac.new(config.alert_secret().encode(), body, hashlib.sha256).hexdigest()
-    if not hmac.compare_digest(expected, x_signature):
-        raise HTTPException(401, "bad signature")
-    req = AskRequest.model_validate_json(body)
-    system_user = {"name": "alertmanager", "groups": ["sre"], "services": list(config.SERVICE_GRAPH)}
-    try:
-        return orch.handle(system_user, req)
-    except (ValueError, KeyError, PermissionError) as e:
         raise HTTPException(400, str(e))
 
 

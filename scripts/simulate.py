@@ -3,14 +3,10 @@
   python scripts/simulate.py list
   python scripts/simulate.py run db_pool_exhaustion          # in-process
   python scripts/simulate.py run all
-  python scripts/simulate.py run bad_deploy --url http://localhost:8000 [--alert]
-  python scripts/simulate.py graph                            # mermaid diagram of the agent graph
+  python scripts/simulate.py run bad_deploy --url http://localhost:8000
   python scripts/simulate.py attacks                         # security scenarios, PASS/FAIL
 """
 import argparse
-import hashlib
-import hmac
-import json
 import os
 import sys
 from pathlib import Path
@@ -56,12 +52,7 @@ def run_scenarios(args) -> int:
         for sid in ids:
             env = scenarios.build(sid)
             body = {"question": QUESTIONS[sid], "service": env.service, "scenario": sid}
-            if args.alert:
-                raw = json.dumps(body).encode()
-                sig = hmac.new(config.alert_secret().encode(), raw, hashlib.sha256).hexdigest()
-                r = httpx.post(f"{args.url}/alerts", content=raw, headers={"x-signature": sig}, timeout=120)
-            else:
-                r = httpx.post(f"{args.url}/ask", json=body, headers={"x-api-key": args.key}, timeout=120)
+            r = httpx.post(f"{args.url}/ask", json=body, headers={"x-api-key": args.key}, timeout=120)
             if r.status_code != 200:
                 print(f"\n=== {sid} === HTTP {r.status_code}: {r.text}")
                 bad += 1
@@ -105,8 +96,6 @@ def run_attacks(_args) -> int:
     check("oversized input blocked", ask("a" * 5000).status_code == 400)
     check("missing api key rejected", client.post("/ask", json={"question": "payments down"}).status_code == 401)
     check("cross-team access (BOLA) denied", ask("payments errors", bob).status_code == 403)
-    check("forged alert rejected",
-          client.post("/alerts", content=b'{"question":"x payments-service"}', headers={"x-signature": "bad"}).status_code == 401)
     check("non-admin cannot read audit", client.get("/audit/inc-x", headers=bob).status_code == 403)
 
     orch = main.orchestrator()
@@ -135,20 +124,14 @@ def main_cli() -> int:
     r = sub.add_parser("run")
     r.add_argument("scenario", choices=[*scenarios.scenario_ids(), "all"])
     r.add_argument("--url", help="call a running server instead of in-process")
-    r.add_argument("--alert", action="store_true", help="send through the signed /alerts webhook (needs --url)")
     r.add_argument("--key", default="key-alice-sre")
     r.add_argument("-v", "--verbose", action="store_true")
     sub.add_parser("attacks")
-    sub.add_parser("graph", help="print the agent graph as mermaid")
     args = ap.parse_args()
     if args.cmd == "list":
         for sid in scenarios.scenario_ids():
             s = scenarios.build(sid)
             print(f"{sid:20} service={s.service:18} expected={EXPECTED[sid]:12} {s.root_cause}")
-        return 0
-    if args.cmd == "graph":
-        from app.orchestrator import Orchestrator
-        print(Orchestrator().graph.get_graph().draw_mermaid())
         return 0
     if args.cmd == "attacks":
         return run_attacks(args)

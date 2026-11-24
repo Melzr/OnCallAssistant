@@ -1,6 +1,6 @@
 # OnCall Copilot
 
-Multi-agent incident response assistant (POC). Given an alert or a question, it gathers metrics, logs and
+Multi-agent incident response assistant (POC). Given a question from an on-call engineer, it gathers metrics, logs and
 deploys from a simulated environment, retrieves runbooks/postmortems with a metadata-aware RAG, proposes a
 root cause, has a second agent verify it, and returns a cited answer.
 
@@ -35,7 +35,7 @@ Scenarios: `db_pool_exhaustion`, `bad_deploy`, `tls_expiry` (see `simulator/scen
 
 ## Status
 
-Implemented: FastAPI (`/ask`, `/alerts` with HMAC, `/audit/{id}`), 4 agents, simulator, BM25 retriever with
+Implemented: FastAPI (`/ask`, `/audit/{id}`), 4 agents, simulator, BM25 retriever with
 metadata (hard ACL/status filters, soft service filter, related-doc expansion, metadata rerank, enriched index
 text), injection filter, redaction, hash-chained audit, response cache, rate limit.
 
@@ -55,7 +55,6 @@ python -m venv .venv && .venv/bin/pip install -e '.[dev]'
 # against a running server
 .venv/bin/uvicorn app.api.main:app --reload
 .venv/bin/python scripts/simulate.py run bad_deploy --url http://localhost:8000
-.venv/bin/python scripts/simulate.py run all --url http://localhost:8000 --alert
 ```
 
 Audit trail: `var/audit.jsonl`, or `GET /audit/{incident_id}` with an admin key. Set `ANTHROPIC_API_KEY` to enable the LLM layer.
@@ -68,11 +67,15 @@ Traceability:
 - A callback handler (`app/tracing.py`) records every LLM call (model, tokens, latency, stop reason) and tool call into the response `trace` and the hash-chained audit log. Prompt text is never stored there.
 - Set `LANGSMITH_API_KEY` to also send full runs to LangSmith (project `oncall-copilot`, tagged with `incident_id`). Prompts and incident data leave the machine, so keep it unset for sensitive data.
 
-`python scripts/simulate.py graph` prints the graph as mermaid.
-
 ## Cost and latency
 
 - **Model cascade:** the investigator starts on Sonnet and escalates to Opus only when the verifier rejects the first hypothesis. Triage uses Haiku.
 - **Prompt trimming:** LLM prompts include only the top `MAX_PROMPT_DOCS` retrieved chunks (plus any chunk the hypothesis cites), each cut at `MAX_DOC_CHARS`. The full set is still used for citation checks and for quoting the mitigation.
 - **Limits:** response cache (TTL), per-incident token budget, rate limit, max 2 verify rounds.
 - **Visibility:** each LLM call records model, tokens and latency in the response `trace`.
+
+## Future improvements
+
+- Automatic trigger: accept alerts from a monitoring system (signed webhook) instead of only human questions.
+- Final automatic action (for example a Slack summary or a ticket).
+- Evaluation harness with metrics for the model, the agents and the RAG.

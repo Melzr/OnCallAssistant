@@ -71,7 +71,3 @@ def anthropic_headers() -> dict[str, str]:
         if sep and name.strip():
             out[name.strip()] = value.strip()
     return out
-
-
-def alert_secret() -> str:
-    return os.environ.get("ALERT_HMAC_SECRET", "change-me")
