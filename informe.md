@@ -30,12 +30,12 @@ flowchart LR
 |---|---|
 | **API (FastAPI)** | `/ask`, `/health`, `/audit/{id}`. Autenticación por API key, RBAC por servicio, límite de 20 consultas por minuto, validación de entrada. |
 | **Triage** (Haiku) | Convierte la pregunta en un plan: servicio, severidad e intención (diagnóstico o mitigación). Valida que el servicio esté permitido para el usuario. |
-| **Gather** | Ejecuta las herramientas operativas (`query_metrics`, `search_logs`, `recent_deploys`) sobre el entorno simulado que sirve la instancia (opción `--scenario` de `scripts/serve.sh`, fijada al arrancar; sin ella cada servicio usa su incidente por defecto) y recupera documentos con el RAG. |
+| **Gather** | Ejecuta las herramientas operativas (`query_metrics`, `search_logs`, `recent_deploys`) sobre el entorno simulado que sirve la instancia (opción `--scenario` de `scripts/serve.sh`) y recupera documentos con el RAG. |
 | **Investigador** (Sonnet; Opus solo si hay rechazo) | Propone root cause, categoría y citas. Si el verificador lo rechaza, reintenta con la crítica en un modelo más fuerte. |
 | **Verificador** (Sonnet) | Chequeos determinísticos (ids de evidencia y citas válidos, citas coherentes con la categoría, confianza acorde) más una revisión semántica del LLM. |
 | **Responder** | Entrega la mitigación copiada del runbook vigente, sin parafrasear. Si no hay evidencia suficiente, responde `inconclusive`. |
-| **RAG** | BM25 sobre texto enriquecido con metadatos, filtros duros (ACL y estado vigente), filtro blando por servicio y grafo de dependencias, expansión por `related_to` y re-ranking por recencia, servicio, tipo y categoría. Cada chunk tiene id `doc_id#seccion`. |
-| **Seguridad** | Filtro de inyección (EN/ES), contenido no confiable envuelto en `<untrusted>`, redacción de secretos, RBAC, auditoría con hash encadenado, presupuesto de tokens y límite de rondas. |
+| **RAG** | BM25 sobre texto enriquecido con metadatos, filtros duros (ACL y estado vigente), filtro blando por servicio y grafo de dependencias, expansión por `related_to` y re-ranking por fecha, servicio, tipo y categoría. Cada chunk tiene id `doc_id#seccion`. |
+| **Seguridad** | Filtro de inyección (EN/ES), contenido no confiable envuelto en `<untrusted>`, redacción de secretos, RBAC, auditoría con hashes, presupuesto de tokens y límite de reintentos. |
 | **Caché y recorte de prompt** | Caché en memoria (TTL 600 s) solo para respuestas aprobadas; solo los 4 documentos mejor puntuados más los citados, truncados a 1200 caracteres. |
 | **Trazabilidad** | Callback de LangChain que registra modelo, tokens, latencia y herramientas (nunca el texto de los prompts), hacia el log de auditoría y LangSmith. |
 
@@ -49,7 +49,7 @@ flowchart LR
 | Modelos | Haiku 5.5 (triage), Sonnet 5.5 (investigador y verificador), Opus 5.5 (escalamiento) |
 | Recuperación | `rank_bm25`, metadatos YAML por documento |
 | Observabilidad | LangSmith y log de auditoría JSONL |
-| Simulación | `simulator/scenarios.py`: 4 incidentes sintéticos con verdad conocida. El escenario se elige al arrancar con `scripts/serve.sh --scenario <id>` (opcional), no en la API |
+| Simulación | `simulator/scenarios.py`: 4 incidentes sintéticos. El escenario se elige al arrancar con `scripts/serve.sh --scenario <id>` (opcional), no en la API |
 | Pruebas | pytest (29 pruebas, con LLM falso), `scripts/simulate.py` (escenarios y ataques) |
 | Evaluación | `scripts/evaluate.py`, `scripts/benchmark.py`, `evaluation/metrics.py`, `evaluation/gold.py` |
 
@@ -70,7 +70,7 @@ Si no hay `ANTHROPIC_API_KEY`, el sistema funciona con heurísticas. Cualquier e
 
 ## Evaluación
 
-Metodología: `python scripts/evaluate.py --runs 5` contra Claude real (a través del gateway). Son 4 escenarios por 5 repeticiones, en total 20 incidentes. Cada incidente lleva una etiqueta única en el system prompt para evitar respuestas cacheadas por el gateway, de modo que las latencias son frías. Los resultados completos están en `var/evaluation.json`.
+Metodología: `python scripts/evaluate.py --runs 5` contra Claude real (a través del gateway). Son 4 escenarios por 5 repeticiones, en total 20 incidentes. Cada incidente lleva una etiqueta única en el system prompt para evitar respuestas cacheadas por el gateway. Los resultados completos están en `var/evaluation.json`.
 
 Los costos son **estimaciones a precio de lista** (USD por millón de tokens, entrada/salida: Haiku 0,10/0,50; Sonnet 2/10; Opus 4/20). El gateway puede facturar distinto.
 
@@ -197,7 +197,7 @@ Optimización de costo: tras recortar el prompt y escalar a Opus solo tras un re
 
 **Mejoras futuras**
 
-- Disparo automático desde alertas y una acción final automática (por ejemplo, abrir un ticket o ejecutar un rollback con aprobación humana).
+- Disparaar automáticamente el pipeline cuando se triggerea una alerta y una acción final automática (por ejemplo, abrir un ticket o ejecutar un rollback con aprobación humana).
 - Un corpus y un conjunto de escenarios mayores, con casos ambiguos y de varios servicios.
 - Un retriever híbrido (BM25 más embeddings) y un reranker, evaluado con el mismo harness.
 - Conectar las herramientas operativas (`query_metrics`, `search_logs`, `recent_deploys`) a las fuentes reales en producción: una API de métricas (por ejemplo Prometheus o Datadog), un sistema de logs y el historial de deploys del CI/CD. La interfaz de las herramientas no cambia; solo se reemplaza el simulador.
