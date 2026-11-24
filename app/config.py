@@ -71,3 +71,8 @@ def anthropic_headers() -> dict[str, str]:
         if sep and name.strip():
             out[name.strip()] = value.strip()
     return out
+
+
+def active_scenario() -> str | None:
+    """Simulated environment this instance serves; chosen at startup, never by the caller."""
+    return os.environ.get("ONCALL_SCENARIO") or None

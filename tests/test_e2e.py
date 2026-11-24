@@ -8,9 +8,9 @@ from app.schemas import AskRequest
     ("bad_deploy", "orders-service", "bad_deploy", "rb-bad-deploy-rollback"),
     ("tls_expiry", "auth-service", "tls_expiry", "rb-tls-cert-expiry"),
 ])
-def test_root_cause_and_mitigation(orch, alice, scenario, service, category, runbook):
-    a = orch.handle(alice, AskRequest(question=f"{service} is failing, how do I fix it?", service=service,
-                                      scenario=scenario))
+def test_root_cause_and_mitigation(orch, alice, monkeypatch, scenario, service, category, runbook):
+    monkeypatch.setenv("ONCALL_SCENARIO", scenario)
+    a = orch.handle(alice, AskRequest(question=f"{service} is failing, how do I fix it?", service=service))
     assert a.status == "approved"
     assert a.category == category
     assert a.mitigation_ref.startswith(runbook)

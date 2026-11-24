@@ -20,7 +20,7 @@ class Orchestrator:
 
     def _cache_key(self, user: dict, req: AskRequest) -> str:
         scope = ",".join(sorted(user["groups"]))
-        raw = f"{req.service}|{req.scenario}|{' '.join(req.question.lower().split())}|{scope}"
+        raw = f"{req.service}|{config.active_scenario()}|{' '.join(req.question.lower().split())}|{scope}"
         return hashlib.sha256(raw.encode()).hexdigest()
 
     def handle(self, user: dict, req: AskRequest) -> FinalAnswer:
@@ -42,7 +42,7 @@ class Orchestrator:
         hit = self._cache.get(key)
         if hit and time.time() - hit[0] < config.CACHE_TTL_SECONDS:
             log("cache_hit", {"key": key[:12]})
-            return hit[1].model_copy(update={"incident_id": incident_id, "cached": True})
+            return hit[1].model_copy(update={"incident_id": incident_id, "cached": True, "trace": trace})
 
         final = self.graph.invoke(
             {"incident_id": incident_id, "user": user, "req": req, "tokens": 0},

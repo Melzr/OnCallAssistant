@@ -30,7 +30,7 @@ flowchart LR
 |---|---|
 | **API (FastAPI)** | `/ask`, `/health`, `/audit/{id}`. Autenticación por API key, RBAC por servicio, límite de 20 consultas por minuto, validación de entrada. |
 | **Triage** (Haiku) | Convierte la pregunta en un plan: servicio, severidad e intención (diagnóstico o mitigación). Valida que el servicio esté permitido para el usuario. |
-| **Gather** | Ejecuta las herramientas operativas (`query_metrics`, `search_logs`, `recent_deploys`) sobre el escenario simulado y recupera documentos con el RAG. |
+| **Gather** | Ejecuta las herramientas operativas (`query_metrics`, `search_logs`, `recent_deploys`) sobre el entorno simulado que sirve la instancia (opción `--scenario` de `scripts/serve.sh`, fijada al arrancar; sin ella cada servicio usa su incidente por defecto) y recupera documentos con el RAG. |
 | **Investigador** (Sonnet; Opus solo si hay rechazo) | Propone root cause, categoría y citas. Si el verificador lo rechaza, reintenta con la crítica en un modelo más fuerte. |
 | **Verificador** (Sonnet) | Chequeos determinísticos (ids de evidencia y citas válidos, citas coherentes con la categoría, confianza acorde) más una revisión semántica del LLM. |
 | **Responder** | Entrega la mitigación copiada del runbook vigente, sin parafrasear. Si no hay evidencia suficiente, responde `inconclusive`. |
@@ -49,7 +49,7 @@ flowchart LR
 | Modelos | Haiku 5.5 (triage), Sonnet 5.5 (investigador y verificador), Opus 5.5 (escalamiento) |
 | Recuperación | `rank_bm25`, metadatos YAML por documento |
 | Observabilidad | LangSmith y log de auditoría JSONL |
-| Simulación | `simulator/scenarios.py`: 4 incidentes sintéticos con verdad conocida |
+| Simulación | `simulator/scenarios.py`: 4 incidentes sintéticos con verdad conocida. El escenario se elige al arrancar con `scripts/serve.sh --scenario <id>` (opcional), no en la API |
 | Pruebas | pytest (29 pruebas, con LLM falso), `scripts/simulate.py` (escenarios y ataques) |
 | Evaluación | `scripts/evaluate.py`, `scripts/benchmark.py`, `evaluation/metrics.py`, `evaluation/gold.py` |
 
@@ -66,7 +66,7 @@ app/tools/ops.py       herramientas de métricas, logs y deploys
 app/llm.py, tracing.py cliente LLM y trazabilidad
 ```
 
-Si no hay `ANTHROPIC_API_KEY`, el sistema funciona con heurísticas. Cualquier error del LLM también cae a heurísticas, y queda registrado como `llm_error` en el trace.
+Si no hay `ANTHROPIC_API_KEY`, el sistema funciona con heurísticas. Cualquier error del LLM también cae a heurísticas, y queda registrado como `llm_error` en el trace. La API no devuelve el `trace` por defecto: solo lo incluye si el usuario es admin y pasa `?debug=true`, y ese acceso queda en la auditoría (`trace_returned`).
 
 ## Evaluación
 
@@ -205,7 +205,9 @@ Optimización de costo: tras recortar el prompt y escalar a Opus solo tras un re
 ```bash
 export ANTHROPIC_API_KEY=...
 .venv/bin/python -m pytest -q                   # 29 pruebas, sin LLM real
-.venv/bin/python scripts/simulate.py run all    # escenarios
+.venv/bin/python scripts/simulate.py run all    # escenarios (en proceso)
+scripts/serve.sh --scenario bad_deploy          # servidor fijado a un escenario (sin --scenario: por defecto)
+.venv/bin/python scripts/simulate.py run bad_deploy --url http://localhost:8000
 .venv/bin/python scripts/simulate.py attacks    # seguridad
 .venv/bin/python scripts/evaluate.py --runs 5   # métricas de modelo, agentes y RAG
 ```

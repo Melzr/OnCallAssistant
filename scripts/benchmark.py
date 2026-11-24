@@ -6,6 +6,7 @@ Costs are list-price estimates (USD per 1M tokens); the gateway may bill differe
 """
 import argparse
 import json
+import os
 import statistics
 import sys
 import time
@@ -53,8 +54,9 @@ def main() -> int:
         for i in range(args.runs):
             orch = Orchestrator()
             env = scenarios.build(sid)
+            os.environ["ONCALL_SCENARIO"] = sid
             t0 = time.time()
-            a = orch.handle(user, AskRequest(question=QUESTIONS[sid], service=env.service, scenario=sid))
+            a = orch.handle(user, AskRequest(question=QUESTIONS[sid], service=env.service))
             wall = int((time.time() - t0) * 1000)
             llm_calls = [t for t in a.trace if t["event"] == "llm_call"]
             errs = [t for t in a.trace if t["event"] == "llm_error"]

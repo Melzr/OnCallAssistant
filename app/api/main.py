@@ -2,11 +2,11 @@ import time
 from collections import defaultdict, deque
 
 from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi.responses import JSONResponse
 
 from app import config
 from app.orchestrator import Orchestrator
 from app.schemas import AskRequest, FinalAnswer
-from simulator import scenarios
 
 app = FastAPI(title="OnCall Copilot")
 _orch: Orchestrator | None = None
@@ -35,19 +35,24 @@ def current_user(x_api_key: str = Header(default="")) -> dict:
 
 @app.get("/health")
 def health():
-    return {"ok": True, "scenarios": scenarios.scenario_ids()}
+    return {"ok": True, "scenario": config.active_scenario() or "default"}
 
 
 @app.post("/ask", response_model=FinalAnswer)
-def ask(req: AskRequest, user: dict = Depends(current_user), orch: Orchestrator = Depends(orchestrator)):
+def ask(req: AskRequest, debug: bool = False, user: dict = Depends(current_user),
+        orch: Orchestrator = Depends(orchestrator)):
     if req.service and req.service not in user["services"]:
         raise HTTPException(403, "service not permitted")
     try:
-        return orch.handle(user, req)
+        answer = orch.handle(user, req)
     except PermissionError as e:
         raise HTTPException(403, str(e))
     except (ValueError, KeyError) as e:
         raise HTTPException(400, str(e))
+    with_trace = debug and user["role"] == "admin"
+    if with_trace:
+        orch.audit.write(answer.incident_id, "trace_returned", user["name"], {"events": len(answer.trace)})
+    return JSONResponse(answer.model_dump(mode="json", exclude=None if with_trace else {"trace"}))
 
 
 @app.get("/audit/{incident_id}")

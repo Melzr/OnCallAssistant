@@ -49,7 +49,9 @@ def build_graph(retriever: Retriever):
 
     def gather_node(s: State, config: RunnableConfig):
         plan, user = s["plan"], s["user"]
-        env = scenarios.build(s["req"].scenario or _default_scenario(plan.service))
+        env = scenarios.build(settings.active_scenario() or _default_scenario(plan.service))
+        if env.service != plan.service:
+            raise ValueError(f"this instance simulates {env.service}, not {plan.service}")
         evidence = investigator.gather(env, plan, user["services"])
         docs = investigator.sanitize_docs(investigator.retrieve(retriever, plan, evidence, user["groups"]))
         _log(config)("evidence", {"ids": [e.id for e in evidence], "docs": [d["id"] for d in docs]})

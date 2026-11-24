@@ -39,7 +39,7 @@ def show(sid: str, a: dict, verbose: bool) -> None:
     if verbose:
         for e in a["evidence"]:
             print(f"  {e['id']} [{e['kind']}] {e['summary']}")
-        for t in a["trace"]:
+        for t in a.get("trace", []):
             extra = {k: v for k, v in t.items() if k in ("model", "tool", "tokens", "ms", "stop_reason")}
             print(f"  trace: {t['event']} {extra or ''}")
 
@@ -49,10 +49,13 @@ def run_scenarios(args) -> int:
     bad = 0
     if args.url:
         import httpx
+        if len(ids) != 1:
+            print("--url needs a single scenario: the server was started with one (scripts/serve.sh --scenario <id>)")
+            return 2
         for sid in ids:
             env = scenarios.build(sid)
-            body = {"question": QUESTIONS[sid], "service": env.service, "scenario": sid}
-            r = httpx.post(f"{args.url}/ask", json=body, headers={"x-api-key": args.key}, timeout=120)
+            body = {"question": QUESTIONS[sid], "service": env.service}
+            r = httpx.post(f"{args.url}/ask", params={"debug": args.verbose}, json=body, headers={"x-api-key": args.key}, timeout=120)
             if r.status_code != 200:
                 print(f"\n=== {sid} === HTTP {r.status_code}: {r.text}")
                 bad += 1
@@ -66,7 +69,8 @@ def run_scenarios(args) -> int:
         user = config.USERS[args.key]
         for sid in ids:
             env = scenarios.build(sid)
-            a = orch.handle(user, AskRequest(question=QUESTIONS[sid], service=env.service, scenario=sid))
+            os.environ["ONCALL_SCENARIO"] = sid
+            a = orch.handle(user, AskRequest(question=QUESTIONS[sid], service=env.service))
             show(sid, a.model_dump(), args.verbose)
             bad += a.status != EXPECTED[sid]
     print(f"\n{len(ids) - bad}/{len(ids)} as expected")

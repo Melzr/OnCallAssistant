@@ -4,6 +4,7 @@
 """
 import argparse
 import json
+import os
 import statistics
 import sys
 import time
@@ -96,8 +97,9 @@ def run_pipeline(runs: int, retriever: Retriever, session: str) -> list[dict]:
             llm.CACHE_BUST = f"{session}-{sid}-{i}"
             orch = Orchestrator(retriever)
             env = scenarios.build(sid)
+            os.environ["ONCALL_SCENARIO"] = sid
             t0 = time.time()
-            a = orch.handle(user, AskRequest(question=QUESTIONS[sid], service=env.service, scenario=sid))
+            a = orch.handle(user, AskRequest(question=QUESTIONS[sid], service=env.service))
             wall = int((time.time() - t0) * 1000)
             tr = a.trace
             ev_ids = {e["id"] for e in (a.evidence and [x.model_dump() for x in a.evidence]) or []}
@@ -176,7 +178,8 @@ def eval_redundancy(retriever: Retriever) -> dict:
     user = config.USERS["key-alice-sre"]
     orch = Orchestrator(retriever)
     env = scenarios.build("db_pool_exhaustion")
-    req = AskRequest(question=QUESTIONS["db_pool_exhaustion"], service=env.service, scenario="db_pool_exhaustion")
+    os.environ["ONCALL_SCENARIO"] = "db_pool_exhaustion"
+    req = AskRequest(question=QUESTIONS["db_pool_exhaustion"], service=env.service)
     t0 = time.time()
     first = orch.handle(user, req)
     t1 = time.time()

@@ -34,7 +34,7 @@ def online(monkeypatch):
 def test_online_path_traces_llm_calls(monkeypatch, online, orch, alice):
     monkeypatch.setattr(llm, "make_chat", fake_chat_factory())
     a = orch.handle(alice, AskRequest(question="payments-service is down, how do I fix it?",
-                                      service="payments-service", scenario="db_pool_exhaustion"))
+                                      service="payments-service"))
     assert a.status == "approved"
     assert a.tokens == 45
     events = [t["event"] for t in a.trace]
@@ -47,7 +47,7 @@ def test_online_path_traces_llm_calls(monkeypatch, online, orch, alice):
 def test_refusal_falls_back_to_heuristics(monkeypatch, online, orch, alice):
     monkeypatch.setattr(llm, "make_chat", fake_chat_factory(refuse_for=Hypothesis))
     a = orch.handle(alice, AskRequest(question="payments-service is down, how do I fix it?",
-                                      service="payments-service", scenario="db_pool_exhaustion"))
+                                      service="payments-service"))
     assert a.status == "approved"
     assert a.tokens == 30
 
@@ -81,7 +81,7 @@ def test_llm_errors_fall_back_to_heuristics(monkeypatch, online, orch, alice):
 
     monkeypatch.setattr(llm, "make_chat", lambda *a, **k: Broken())
     a = orch.handle(alice, AskRequest(question="payments-service is down, how do I fix it?",
-                                      service="payments-service", scenario="db_pool_exhaustion"))
+                                      service="payments-service"))
     assert a.status == "approved"
     assert a.tokens == 0
 
@@ -103,7 +103,7 @@ def test_investigator_escalates_to_opus_only_after_rejection(monkeypatch, online
 
     monkeypatch.setattr(llm, "make_chat", make)
     orch.handle(alice, AskRequest(question="payments-service is down, how do I fix it?",
-                                  service="payments-service", scenario="db_pool_exhaustion"))
+                                  service="payments-service"))
     inv = [m for m in used if m in (config.MODEL_INVESTIGATOR, config.MODEL_INVESTIGATOR_ESCALATION)]
     assert inv[0] == config.MODEL_INVESTIGATOR
     assert inv[1] == config.MODEL_INVESTIGATOR_ESCALATION

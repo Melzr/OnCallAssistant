@@ -8,7 +8,6 @@ Intent = Literal["diagnosis", "mitigation"]
 class AskRequest(BaseModel):
     question: str = Field(min_length=3)
     service: str | None = None
-    scenario: str | None = None
 
 
 class Plan(BaseModel):
