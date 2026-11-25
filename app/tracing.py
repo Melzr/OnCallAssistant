@@ -12,7 +12,7 @@ def langsmith_enabled() -> bool:
 def setup() -> None:
     if langsmith_enabled():
         os.environ.setdefault("LANGSMITH_TRACING", "true")
-        os.environ.setdefault("LANGSMITH_PROJECT", "oncall-copilot")
+        os.environ.setdefault("LANGSMITH_PROJECT", "oncall-assistant")
 
 
 class TraceHandler(BaseCallbackHandler):
@@ -54,9 +54,9 @@ class TraceHandler(BaseCallbackHandler):
 
 def run_config(incident_id: str, user: str, log: Callable[[str, dict], None]) -> dict:
     return {
-        "run_name": "oncall-copilot",
+        "run_name": "oncall-assistant",
         "callbacks": [TraceHandler(log)],
-        "tags": ["oncall-copilot"],
+        "tags": ["oncall-assistant"],
         "metadata": {"incident_id": incident_id, "user": user},
         "configurable": {"log": log},
     }

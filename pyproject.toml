@@ -1,5 +1,5 @@
 [project]
-name = "oncall-copilot"
+name = "oncall-assistant"
 version = "0.1.0"
 description = "Multi-agent incident response assistant (POC)"
 requires-python = ">=3.11"

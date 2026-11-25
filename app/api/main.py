@@ -8,7 +8,7 @@ from app import config
 from app.orchestrator import Orchestrator
 from app.schemas import AskRequest, FinalAnswer
 
-app = FastAPI(title="OnCall Copilot")
+app = FastAPI(title="OnCall Assistant")
 _orch: Orchestrator | None = None
 _hits: dict[str, deque] = defaultdict(deque)
 

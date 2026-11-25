@@ -1,4 +1,4 @@
-# OnCall Copilot
+# OnCall Assistant
 
 Multi-agent incident response assistant (POC). Given a question from an on-call engineer, it gathers metrics, logs and
 deploys from a simulated environment, retrieves runbooks/postmortems with a metadata-aware RAG, proposes a
@@ -75,7 +75,7 @@ Agents run as nodes of a LangGraph `StateGraph` (`app/graph.py`): `triage -> gat
 Traceability:
 - A callback handler (`app/tracing.py`) records every LLM call (model, tokens, latency, stop reason) and tool call into the hash-chained audit log (and the in-process `trace`). Prompt text is never stored there.
 - `POST /ask` omits `trace` by default. It is included only when the caller is an admin and passes `?debug=true`; that access is itself recorded in the audit log as `trace_returned`.
-- Set `LANGSMITH_API_KEY` to also send full runs to LangSmith (project `oncall-copilot`, tagged with `incident_id`). Prompts and incident data leave the machine, so keep it unset for sensitive data.
+- Set `LANGSMITH_API_KEY` to also send full runs to LangSmith (project `oncall-assistant`, tagged with `incident_id`). Prompts and incident data leave the machine, so keep it unset for sensitive data.
 
 ## Cost and latency
 

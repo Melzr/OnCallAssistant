@@ -1,4 +1,4 @@
-# OnCall Copilot — Informe del proyecto
+# OnCall Assistant — Informe del proyecto
 
 Asistente multi-agente de respuesta a incidentes. Un ingeniero hace una consulta (`POST /ask`) y el sistema investiga métricas, logs y deploys, recupera runbooks y postmortems relevantes, propone una root cause verificada y devuelve la mitigación citando sus fuentes. El objetivo es reducir el tiempo que un ingeniero de guardia tarda en pasar de "algo falla" a "causa probable + acción de mitigación documentada".
 

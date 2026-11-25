@@ -1,4 +1,4 @@
-"""Simulate incidents and attacks against OnCall Copilot.
+"""Simulate incidents and attacks against OnCall Assistant.
 
   python scripts/simulate.py list
   python scripts/simulate.py run db_pool_exhaustion          # in-process
